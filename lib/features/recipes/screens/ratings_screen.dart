@@ -10,9 +10,11 @@ class RatingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('������'),
+        title: const Text('Оценки'),
       ),
       body: BlocBuilder<RecipesBloc, RecipesState>(
         builder: (context, state) {
@@ -21,53 +23,76 @@ class RatingsScreen extends StatelessWidget {
           }
 
           if (state is! RecipesLoaded) {
-            return const Center(child: Text('��� ������'));
+            return const Center(child: Text('Нет данных'));
           }
 
-          final ratedBooks = state.recipes
-              .where((recipe) => recipe.rating != null)
+          // Берём только рецепты с выставленной оценкой
+          final rated = state.recipes
+              .where((r) => r.rating != null)
               .toList()
             ..sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
 
-          if (ratedBooks.isEmpty) {
-            return const EmptyState(icon: Icons.star_outline, title: '��� ������', subtitle: '��������� ������ ��������');
+          if (rated.isEmpty) {
+            return const EmptyState(
+              icon: Icons.star_outline,
+              title: 'Пока нет оценок',
+              subtitle: 'Оцените несколько рецептов — они появятся здесь',
+            );
           }
+
+          final double avg = rated
+                  .map((r) => r.rating ?? 0)
+                  .fold<double>(0, (a, b) => a + b) /
+              rated.length;
 
           return Column(
             children: [
+              // Статистика
               Container(
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.1),
+                  color: Colors.amber.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.amber.withValues(alpha: 0.3),
+                    color: Colors.amber.withOpacity(0.25),
                   ),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem('������� ������', state.averageRating.toStringAsFixed(1),
-                      Icons.star,
+                    Expanded(
+                      child: _StatItem(
+                        icon: Icons.star,
+                        iconColor: Colors.amber,
+                        value: avg.toStringAsFixed(1),
+                        label: 'Средняя оценка',
+                      ),
                     ),
                     Container(
                       width: 1,
                       height: 40,
-                      color: Colors.amber.withValues(alpha: 0.3),
+                      color: Colors.amber.withOpacity(0.25),
                     ),
-                    _buildStatItem('� �������', ratedBooks.length.toString(),
-                      Icons.check_circle,
+                    Expanded(
+                      child: _StatItem(
+                        icon: Icons.check_circle,
+                        iconColor: theme.colorScheme.primary,
+                        value: rated.length.toString(),
+                        label: 'Оценено рецептов',
+                      ),
                     ),
                   ],
                 ),
               ),
+
+              // Список оценённых рецептов
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: ratedBooks.length,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  itemCount: rated.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final recipe = ratedBooks[index];
+                    final recipe = rated[index];
                     return RecipeTile(
                       key: ValueKey(recipe.id),
                       recipe: recipe,
@@ -81,33 +106,47 @@ class RatingsScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+
+  const _StatItem({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textMuted = Colors.grey.shade600;
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.amber, size: 32),
-        const SizedBox(height: 8),
+        Icon(icon, color: iconColor, size: 28),
+        const SizedBox(height: 6),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.amber,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey.shade600,
+            color: textMuted,
           ),
         ),
       ],
     );
   }
 }
-
-
-
-

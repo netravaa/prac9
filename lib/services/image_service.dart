@@ -17,6 +17,7 @@ class ImageService {
   static const String _keyUsedAvatars = 'used_avatars';
   static const String _keyAvailableAvatars = 'available_avatars';
 
+  // Новые источники и размеры
   static const int _recipeW = 400;
   static const int _recipeH = 600;
   static const int _avatarSize = 400;
@@ -55,6 +56,7 @@ class ImageService {
       _availableAvatars = List<String>.from(jsonDecode(availableAvatarsJson));
     }
 
+    // Миграция: убираем старые picsum-ссылки из сохранённого состояния
     bool migrated = _migrateLegacyPicsum();
 
     if (_availableImages.isEmpty || migrated) {
@@ -68,6 +70,7 @@ class ImageService {
     _isInitialized = true;
   }
 
+  /// Удаляет все ссылки на picsum из сохранённых пулов.
   bool _migrateLegacyPicsum() {
     bool need = false;
 
@@ -86,6 +89,9 @@ class ImageService {
     return true;
   }
 
+  // ---------------------------------------------------------------------------
+  // Генерация пулов
+  // ---------------------------------------------------------------------------
 
   Future<void> _generateImagePool() async {
     _availableImages.clear();
@@ -111,6 +117,9 @@ class ImageService {
     await _saveState();
   }
 
+  // ---------------------------------------------------------------------------
+  // Построители URL
+  // ---------------------------------------------------------------------------
 
   String _foodUrl(int seed) =>
       'https://loremflickr.com/$_recipeW/$_recipeH/$_foodTags?lock=$seed';
@@ -118,6 +127,9 @@ class ImageService {
   String _avatarUrl(int seed) =>
       'https://i.pravatar.cc/$_avatarSize?u=$seed';
 
+  // ---------------------------------------------------------------------------
+  // Публичный API
+  // ---------------------------------------------------------------------------
 
   Future<void> preloadImagePool() async {
     await initialize();
@@ -125,7 +137,7 @@ class ImageService {
     for (final url in _availableImages) {
       try {
         await _cacheManager.downloadFile(url);
-        LoggerService.debug('Предзагружено изображение книжки: $url');
+        LoggerService.debug('Предзагружено изображение: $url');
       } catch (e) {
         LoggerService.error('Ошибка предзагрузки $url', e);
       }
@@ -141,7 +153,8 @@ class ImageService {
     }
   }
 
-  Future<String?> getNextRecipeImage() async {
+  /// Историческое имя: «книжки». Логика — выдаём следующее изображение блюда.
+  Future<String?> getNextBookImage() async {
     await initialize();
 
     if (_availableImages.isEmpty) {
@@ -160,6 +173,9 @@ class ImageService {
 
     return imageUrl;
   }
+
+  /// ✅ Алиас для совместимости со старым кодом (RecipesBloc использует его)
+  Future<String?> getNextRecipeImage() async => getNextBookImage();
 
   Future<String?> getNextAvatar() async {
     await initialize();
@@ -219,16 +235,21 @@ class ImageService {
     await prefs.setString(_keyAvailableAvatars, jsonEncode(_availableAvatars));
   }
 
-  String getRandomRecipeImageUrl(String recipeId) {
-    final seed = recipeId.hashCode.abs();
+  // Детерминированные URL — сохранил сигнатуры и добавил алиас
+  String getRandomBookImageUrl(String bookId) {
+    final seed = bookId.hashCode.abs();
     return 'https://loremflickr.com/$_recipeW/$_recipeH/$_foodTags?lock=$seed';
   }
+
+  /// ✅ Алиас для совместимости (если где-то вызывается recipe-версия)
+  String getRandomRecipeImageUrl(String recipeId) => getRandomBookImageUrl(recipeId);
 
   String getRandomProfileImageUrl(String userId) {
     final seed = userId.hashCode.abs();
     return 'https://i.pravatar.cc/$_avatarSize?u=$seed';
   }
 
+  // Кэш-утилиты
   Future<void> removeFromCache(String url) async {
     try {
       await _cacheManager.removeFile(url);
